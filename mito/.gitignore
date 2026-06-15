@@ -1,0 +1,32 @@
+# R session and history
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# R temporary/binary objects
+*.rds
+*.RData
+*.rda
+
+# Large raw data files (download via GEO instead)
+*.gz
+*.bam
+*.bai
+*.fastq
+*.fq
+*.sam
+
+# System files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*~
+*.tmp
+*.swp
+
+# Output PDFs (PNG versions are included instead)
+# Uncomment the line below if you want to exclude PDFs too
+# *.pdf

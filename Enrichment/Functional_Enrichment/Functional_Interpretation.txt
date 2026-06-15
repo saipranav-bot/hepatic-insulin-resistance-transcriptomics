@@ -1,0 +1,19 @@
+FUNCTIONAL ENRICHMENT ANALYSIS
+====================================
+
+TOP GO TERMS:
+
+[1] Description p.adjust    GeneRatio  
+<0 rows> (or 0-length row.names)
+
+
+TOP KEGG PATHWAYS:
+
+[1] Description p.adjust   
+<0 rows> (or 0-length row.names)
+
+
+These enrichments indicate coordinated
+alteration of metabolic, mitochondrial,
+oxidative stress, inflammatory,
+and insulin resistance-associated pathways.
