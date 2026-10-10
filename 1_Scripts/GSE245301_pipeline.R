@@ -788,9 +788,7 @@ cat("Strong suppression of mitochondrial oxidative phosphorylation in OB_IR.\n\n
 cat("All files saved to:\n")
 cat(outdir, "\n\n")
 
-----------------------------------------------
-  
-  # ============================================================
+# ============================================================
 # STAGE 4 — CORE DEG EXTRACTION
 # GSE245301 | OB_IS vs OB_IR
 # ============================================================
@@ -941,9 +939,7 @@ print(
     head(20)
 )
 
-----------------------------------------------------
-
-  # ============================================================
+# ============================================================
 # STAGE 5 — CONVERT ENSEMBL IDs TO GENE SYMBOLS
 # ============================================================
 
@@ -1066,10 +1062,7 @@ cat("Top_DEGs_Annotated.csv\n\n")
 cat("Saved in:\n")
 cat(outdir, "\n\n")
 
-----
-  
-  
-  # ============================================================
+# ============================================================
 # STAGE 6 — HUB GENE NETWORK ANALYSIS
 # ============================================================
 
@@ -1138,6 +1131,9 @@ cat("Genes after filtering:", nrow(deg), "\n\n")
 # INITIALIZE STRING DATABASE
 # ============================================================
 
+# score_threshold is on the STRING combined-score scale (0-1000); 400 = the
+# "medium confidence" cut-off (>= 0.400). This is the threshold used to build
+# the HIRS-7 network (committed edges score 431-693).
 string_db <- STRINGdb$new(
   version = "11.5",
   species = 10090,
@@ -1352,10 +1348,7 @@ cat("4. Hub_Gene_Interpretation.txt\n\n")
 cat("Saved in:\n")
 cat(network_dir, "\n\n")
 
-----
-  
-  
-  # ============================================================
+# ============================================================
 # STAGE 7 — GO + KEGG ENRICHMENT ANALYSIS
 # ============================================================
 
@@ -2567,8 +2560,7 @@ cat(heatmap_dir, "\n\n")
 
 # ============================================================
 #  GSE245301 — STAGE 5: GSEA ANALYSIS
-#  This is your most important remaining analysis
-#  Saves everything to: C:/Users/saipr/OneDrive/Desktop/mito/GSEA
+#  Saves everything to: <outdir>/GSEA
 # ============================================================
 
 # ── LIBRARIES ─────────────────────────────────────────────────
@@ -2996,7 +2988,7 @@ cat("and we will interpret the biology + move to WGCNA.\n")
 #  GSE245301 — STAGE 6: WGCNA CO-EXPRESSION ANALYSIS
 #  Goal: Find the repair network module (AMPK/Nrf2/mitophagy)
 #  that collapses during OB-IS → OB-IR transition
-#  Saves to: C:/Users/saipr/OneDrive/Desktop/mito/WGCNA
+#  Saves to: <outdir>/WGCNA
 # ============================================================
 
 # ── INSTALL (run once, then comment out) ─────────────────────
@@ -3022,7 +3014,7 @@ cat("Libraries loaded.\n\n")
 
 
 # ── OUTPUT FOLDER ─────────────────────────────────────────────
-outdir    <- "C:/Users/saipr/OneDrive/Desktop/mito"
+outdir    <- "."  # working directory containing the pipeline outputs
 wgcna_dir <- file.path(outdir, "WGCNA")
 dir.create(wgcna_dir, showWarnings = FALSE, recursive = TRUE)
 cat("WGCNA outputs will save to:", wgcna_dir, "\n\n")
@@ -3424,44 +3416,4 @@ cat("  WGCNA_Repair_Module_Key_Genes.csv\n")
 cat("  WGCNA_Repair_Module_MM_GS.csv\n")
 cat("  WGCNA_Hub_Genes_for_STRING.csv\n\n")
 cat("Paste the output here — next step is manuscript writing.\n")
-
-mat <- read.csv(file.path(outdir, "GSE245301_VST_normalised_matrix.csv"),
-                row.names = 1,
-                check.names = FALSE)
-
-datExpr <- as.data.frame(t(mat))  # IMPORTANT: samples as rows
-
-
-
-#################
-library(WGCNA)
-
-base <- file.path(outdir, "WGCNA")
-
-load(file.path(base, "WGCNA_FunctionalEnrichment_workspace.RData"))
-
-load(file.path(base, "net.rds"))
-moduleColors <- readRDS(file.path(base, "moduleColors.rds"))
-
-MEs <- readRDS(file.path(base, "MEs.rds"))
-
-trait <- read.csv("/mnt/c/Users/saipr/OneDrive/Desktop/mito/GSE245301_sample_table.csv", row.names = 1)
-
-# ensure alignment
-MEs <- orderMEs(MEs)
-
-png(file.path(base, "WGCNA_ModuleTraitHeatmap_FIXED.png"),
-    width=3000, height=2500, res=300)
-
-labeledHeatmap(
-  Matrix = cor(MEs, trait, use="p"),
-  xLabels = names(trait),
-  yLabels = names(MEs),
-  ySymbols = names(MEs),
-  colorLabels = FALSE,
-  colors = blueWhiteRed(50),
-  textMatrix = signif(cor(MEs, trait, use="p"), 2)
-)
-
-dev.off()
 
