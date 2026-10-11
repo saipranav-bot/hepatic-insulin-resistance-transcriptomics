@@ -18,7 +18,7 @@ A complete R bioinformatics pipeline analysing mitochondrial dysfunction in diet
 ## Repository Structure
 
 - 1_Scripts/ — R scripts: `00_download_data.R` (public GEO download), `GSE245301_pipeline.R` (main pipeline) and validation scripts
-- 2_Data/ — Raw count matrix, sample table, VST matrix, DEG tables, ranked GSEA list
+- 2_Data/ — Raw count matrix, sample table, VST matrix, ranked GSEA list
 - 3_Figures/ — Publication figures numbered in analysis order
 - 4_Results/ — DEG, GO/KEGG, GSEA, STRING network and WGCNA result tables
 - 5_Validation/ — Independent cross-species validation (GSE132800)
