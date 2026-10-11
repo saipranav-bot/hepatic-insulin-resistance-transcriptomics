@@ -138,6 +138,31 @@ cat("\nSaved sample table.\n\n")
 
 raw_dir <- "GSE245301/raw"
 
+# ── Public-data bootstrap ─────────────────────────────────────
+# The per-sample count files live in the GEO supplementary RAW archive.
+# If they are not present locally, download and extract them so the whole
+# pipeline is reproducible from public data alone.
+# (Standalone helper: 1_Scripts/00_download_data.R.)
+if (!dir.exists(raw_dir) || length(list.files(raw_dir)) == 0) {
+  tar_path <- "GSE245301_RAW.tar"
+  if (!file.exists(tar_path)) {
+    url <- paste0(
+      "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE245nnn/",
+      "GSE245301/suppl/GSE245301_RAW.tar"
+    )
+    cat("Downloading GEO RAW archive from", url, "\n")
+    tryCatch(
+      utils::download.file(url, tar_path, mode = "wb", quiet = TRUE),
+      error = function(e) system(
+        paste("curl -4 -fL -C - -o", shQuote(tar_path), shQuote(url))
+      )
+    )
+  }
+  dir.create(raw_dir, recursive = TRUE, showWarnings = FALSE)
+  utils::untar(tar_path, exdir = raw_dir)
+  cat("Raw archive extracted to", raw_dir, "\n\n")
+}
+
 if (!dir.exists(raw_dir)) {
   stop("ERROR: Raw count folder not found.")
 }
@@ -1134,11 +1159,17 @@ cat("Genes after filtering:", nrow(deg), "\n\n")
 # score_threshold is on the STRING combined-score scale (0-1000); 400 = the
 # "medium confidence" cut-off (>= 0.400). This is the threshold used to build
 # the HIRS-7 network (committed edges score 431-693).
+# STRING's v11.5 network files for mouse are ~85 MB; raise the download
+# timeout far above R's 60 s default so the network stage is reproducible,
+# and cache the downloaded databases under cache/stringdb/.
+options(timeout = 900)
+dir.create("cache/stringdb", showWarnings = FALSE, recursive = TRUE)
+
 string_db <- STRINGdb$new(
   version = "11.5",
   species = 10090,
   score_threshold = 400,
-  input_directory = ""
+  input_directory = "cache/stringdb"
 )
 
 cat("STRINGdb initialized.\n\n")
@@ -1359,7 +1390,9 @@ cat("================================================\n\n")
 # ============================================================
 # LIBRARIES
 # ============================================================
-install.packages("ggraph")
+if (!requireNamespace("ggraph", quietly = TRUE)) {
+  install.packages("ggraph", repos = "https://cloud.r-project.org")
+}
 library(clusterProfiler)
 library(org.Mm.eg.db)
 library(AnnotationDbi)
@@ -2208,6 +2241,7 @@ cat("================================================\n\n")
 library(DESeq2)
 library(pheatmap)
 library(RColorBrewer)
+library(matrixStats)
 library(dplyr)
 
 cat("Libraries loaded.\n\n")
@@ -2230,17 +2264,25 @@ dir.create(
 )
 
 # ------------------------------------------------------------
-# LOAD DESEQ OBJECT
+# LOAD/REBUILD DESeq OBJECT
 # ------------------------------------------------------------
 
-dds <- readRDS(
-  file.path(
-    outdir,
-    "dds_final.rds"
-  )
+# The dds is rebuilt from the raw count and sample-table CSVs written in the
+# core stage (a previous revision expected an RDS that is never saved).
+count_matrix <- read.csv(
+  file.path(outdir, "GSE245301_raw_count_matrix.csv"),
+  row.names = 1, check.names = FALSE
 )
+st <- read.csv(file.path(outdir, "GSE245301_sample_table.csv"))
+st$group <- factor(st$group, levels = c("Control", "OB_IS", "OB_IR"))
+count_matrix <- count_matrix[, st$sample_id]
+count_matrix <- round(as.matrix(count_matrix))
+storage.mode(count_matrix) <- "integer"
+dds <- DESeqDataSetFromMatrix(countData = count_matrix,
+                              colData = st, design = ~ group)
+dds <- DESeq(dds)
 
-cat("DESeq object loaded.\n\n")
+cat("DESeq object rebuilt from saved count matrix.\n\n")
 
 # ------------------------------------------------------------
 # TRANSFORMATION
@@ -2284,7 +2326,7 @@ mat_scaled <- t(
 # ------------------------------------------------------------
 
 annotation_col <- as.data.frame(
-  colData(dds)[, "condition", drop = FALSE]
+  colData(dds)[, "group", drop = FALSE]
 )
 
 # ------------------------------------------------------------
@@ -2459,21 +2501,15 @@ mat_scaled <- t(
 # SAMPLE GROUPS
 # ------------------------------------------------------------
 
+#> The VST matrix samples (GSM ids) are the closest biologic replicates;
+#> group labels are derived from the sample table so the OB_IS/OB_IR order
+#> is never hard-coded (a previous version swapped the two).
 sample_groups <- data.frame(
-  Condition = c(
-    "Control",
-    "Control",
-    "Control",
-    "OB_IR",
-    "OB_IR",
-    "OB_IR",
-    "OB_IS",
-    "OB_IS",
-    "OB_IS"
-  )
+  Condition = sample_table$group[
+    match(colnames(mat_scaled), sample_table$sample_id)
+  ],
+  row.names = colnames(mat_scaled)
 )
-
-rownames(sample_groups) <- colnames(mat_scaled)
 
 # ------------------------------------------------------------
 # COLORS
@@ -2587,7 +2623,7 @@ cat("GSEA outputs will save to:", gsea_dir, "\n\n")
 
 # ── STEP 1: Load your DEG results from Comparison B ──────────
 # This is OB_IS vs OB_IR — your KEY comparison
-deg_file <- file.path(outdir, "Data/GSE245301_DEG_CompB_OB_IS_vs_OB_IR.csv")
+deg_file <- file.path(outdir, "GSE245301_DEG_CompB_OB_IS_vs_OB_IR.csv")
 
 if (!file.exists(deg_file)) {
   stop("DEG file not found. Make sure Stage 2 completed successfully.")
@@ -2839,6 +2875,66 @@ ggsave(
   barplot_fig, width = 10, height = 8, dpi = 300
 )
 cat("Saved: GSEA_Figure5_Hallmark_Barplot.pdf + .png\n\n")
+
+
+# ── STEP 8b: Enrichment curves for the key Hallmark pathways ──
+# fgsea::plotEnrichment draws the classic running-enrichment-score curve
+# directly from the ranked statistic, so every curve is reproducible.
+
+key_curve_map <- c(
+  "HALLMARK_OXIDATIVE_PHOSPHORYLATION"       = "Fig6_GSEA_OxPhos_Enrichment",
+  "HALLMARK_FATTY_ACID_METABOLISM"            = "Fig7_GSEA_FattyAcid_Enrichment",
+  "HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWAY"  = "Fig8_GSEA_ROS_Enrichment",
+  "HALLMARK_TNFA_SIGNALING_VIA_NFKB"          = "Fig9_GSEA_TNFa_Enrichment",
+  "HALLMARK_MTORC1_SIGNALING"                 = "Fig10_GSEA_mTORC1_Enrichment",
+  "HALLMARK_UNFOLDED_PROTEIN_RESPONSE"        = "Fig11_GSEA_UPR_Enrichment"
+)
+
+for (pw in names(key_curve_map)) {
+  if (!pw %in% names(hallmark_list)) next
+  curve_plot <- fgsea::plotEnrichment(hallmark_list[[pw]], ranked_genes) +
+    ggplot2::labs(
+      title    = gsub("_", " ", gsub("HALLMARK_", "", pw)),
+      subtitle = "GSEA running enrichment score | OB-IS vs OB-IR") +
+    ggplot2::theme_bw(base_size = 12) +
+    ggplot2::theme(plot.title = ggplot2::element_text(face = "bold"))
+  ggplot2::ggsave(file.path(gsea_dir, paste0(key_curve_map[[pw]], ".png")),
+                  curve_plot, width = 7, height = 5, dpi = 300)
+  cat("Saved:", key_curve_map[[pw]], ".png\n")
+}
+cat("\n")
+
+
+# ── STEP 8c: KEGG GSEA dotplot ────────────────────────────────
+if (nrow(sig_kegg) >= 5) {
+  top_kegg_dot <- sig_kegg |>
+    dplyr::slice_max(order_by = abs(NES), n = 20) |>
+    dplyr::mutate(
+      Direction = ifelse(NES > 0, "Activated in OB-IR", "Suppressed in OB-IR"),
+      pathway   = gsub("KEGG_", "", pathway),
+      pathway   = gsub("_", " ", pathway)
+    )
+  kegg_dot <- ggplot(
+    top_kegg_dot,
+    aes(x = NES, y = reorder(pathway, NES),
+        size = -log10(padj), color = Direction)
+  ) +
+    geom_point() +
+    scale_color_manual(values = c(
+      "Activated in OB-IR"  = "#D85A30",
+      "Suppressed in OB-IR" = "#378ADD")) +
+    labs(title    = "GSEA — KEGG Pathways",
+         subtitle = "OB-IS vs OB-IR | GSE245301",
+         x = "Normalised Enrichment Score (NES)", y = NULL,
+         size = "-log10(padj)", color = NULL) +
+    theme_bw(base_size = 12) +
+    theme(plot.title = element_text(face = "bold"),
+          legend.position = "bottom")
+  ggplot2::ggsave(file.path(gsea_dir, "Fig14_KEGG_GSEA_Dotplot.png"),
+                  kegg_dot, width = 9, height = 7, dpi = 300)
+  cat("Saved: Fig14_KEGG_GSEA_Dotplot.png\n")
+}
+cat("\n")
 
 
 # ── STEP 9: Figure — KEGG Barplot ────────────────────────────
@@ -3114,6 +3210,9 @@ net <- blockwiseModules(
   verbose           = 3
 )
 moduleColors <- labels2colors(net$colors)
+# labels2colors drops names in some WGCNA builds; the module vector must stay
+# named so repair-module gene extraction below works.
+names(moduleColors) <- colnames(datExpr)
 cat("\nModules detected:", length(unique(moduleColors)) - 1, "\n")
 cat("Module sizes:\n")
 print(table(moduleColors))

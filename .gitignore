@@ -27,6 +27,19 @@ desktop.ini
 *.tmp
 *.swp
 
+# Pipeline scratch artifacts (curated copies live in 2_Data/3_Figures/4_Results)
+/cache/
+/GSE245301/
+/GSEA/
+/WGCNA/
+/Network_Analysis/
+/Functional_Enrichment/
+/Relaxed_Enrichment/
+/Publication_Figures/
+/Publication_Heatmap/
+GSE245301_RAW.tar
+*.log
+
 # Output PDFs (PNG versions are included instead)
 # Uncomment the line below if you want to exclude PDFs too
 # *.pdf

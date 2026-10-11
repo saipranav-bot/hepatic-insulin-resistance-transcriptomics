@@ -13,28 +13,36 @@ A complete R bioinformatics pipeline analysing mitochondrial dysfunction in diet
 | **OB-IS** | Obese, insulin-sensitive (HFD 4 weeks) |
 | **OB-IR** | Obese, insulin-resistant (HFD 12 weeks) |
 
-**Core finding:** The transition to insulin resistance drives suppression of oxidative phosphorylation (NES = -2.80), fatty acid metabolism, and ROS pathway, alongside activation of TNF-a and IL-6/JAK-STAT3 inflammatory signalling.
+**Core finding:** The transition to insulin resistance (OB-IS → OB-IR) drives suppression of oxidative phosphorylation (NES = -2.76) and fatty-acid metabolism, alongside activation of IL-6/JAK-STAT3 inflammatory signalling. WGCNA identifies a 1,449-gene "repair/adaptive" (turquoise) module that is active in OB-IS but collapses in OB-IR, and which contains the mitophagy/antioxidant genes *Map1lc3b*, *Gpx1*, *Gclc*, *Tomm7* and *Ppargc1b*.
 
 ## Repository Structure
 
-- 1_Scripts/ — R scripts, main pipeline and validation
-- 2_Data/ — Raw and processed count matrices, DEG tables
-- 3_Figures/ — All plots numbered in analysis order
-- 4_Results/ — Result tables, DEGs, GSEA, WGCNA, network
-- 5_Validation/ — Cross-species validation GSE132800
+- 1_Scripts/ — R scripts: `00_download_data.R` (public GEO download), `GSE245301_pipeline.R` (main pipeline) and validation scripts
+- 2_Data/ — Raw count matrix, sample table, VST matrix, DEG tables, ranked GSEA list
+- 3_Figures/ — Publication figures numbered in analysis order
+- 4_Results/ — DEG, GO/KEGG, GSEA, STRING network and WGCNA result tables
+- 5_Validation/ — Independent cross-species validation (GSE132800)
+
+The pipeline runs from a scratch working directory and writes intermediate
+outputs there; the curated tables and figures committed under `2_Data/`,
+`3_Figures/` and `4_Results/` are the final copies.
 
 ## Key Results
 
+GSEA Hallmark, OB-IS vs OB-IR (positive NES = higher in OB-IR):
+
 | Pathway | NES | padj |
 |---------|-----|------|
-| OXIDATIVE_PHOSPHORYLATION | -2.80 | 8.8e-29 |
-| FATTY_ACID_METABOLISM | -2.38 | 6.6e-12 |
-| REACTIVE_OXYGEN_SPECIES | -1.60 | 0.038 |
-| MTORC1_SIGNALING | -1.40 | 0.044 |
-| TNFA_SIGNALING_VIA_NFKB | +1.51 | 0.026 |
-| IL6_JAK_STAT3_SIGNALING | +1.89 | 0.004 |
+| HALLMARK_OXIDATIVE_PHOSPHORYLATION | -2.76 | 1.7e-28 |
+| HALLMARK_FATTY_ACID_METABOLISM | -2.33 | 6.5e-12 |
+| HALLMARK_ADIPOGENESIS | -1.98 | 4.9e-07 |
+| HALLMARK_PEROXISOME | -2.00 | 4.8e-05 |
+| HALLMARK_IL6_JAK_STAT3_SIGNALING | +1.87 | 0.0018 |
 
-WGCNA identified 91 co-expression modules across 12,796 genes. The blue module (ME1) shows the strongest negative correlation with insulin resistance.
+WGCNA detected 26 co-expression modules across the 12,796 filtered genes.
+The turquoise module is the "repair" module (OB-IR correlation r = -0.85,
+padj = 0.003; OB-IS r = +0.62); hub genes include *C8g*, *Chchd2*, *Rmdn1*,
+*Nudt16l1* and *Acat3*.
 
 ## Dependencies
 
