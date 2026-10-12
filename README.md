@@ -57,3 +57,7 @@ install.packages(c("WGCNA","fgsea","msigdbr","STRINGdb","igraph","ggraph","matri
 - Validation: [GSE132800](https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE132800)
 
 *This is a learning project — feedback and suggestions are very welcome.*
+
+
+## Plain-English Explanation
+See [EXPLAIN_PLAIN_ENGLISH.md](EXPLAIN_PLAIN_ENGLISH.md) for a non-technical summary of what was done, steps, and verification.
