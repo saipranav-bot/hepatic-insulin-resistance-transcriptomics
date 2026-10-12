@@ -39,7 +39,7 @@ GSEA Hallmark, OB-IS vs OB-IR (positive NES = higher in OB-IR):
 | HALLMARK_PEROXISOME | -2.00 | 4.8e-05 |
 | HALLMARK_IL6_JAK_STAT3_SIGNALING | +1.87 | 0.0018 |
 
-WGCNA detected 26 co-expression modules across the 12,796 filtered genes.
+WGCNA detected 27 co-expression modules across the 12,796 filtered genes.
 The turquoise module is the "repair" module (OB-IR correlation r = -0.85,
 padj = 0.003; OB-IS r = +0.62); hub genes include *C8g*, *Chchd2*, *Rmdn1*,
 *Nudt16l1* and *Acat3*.
